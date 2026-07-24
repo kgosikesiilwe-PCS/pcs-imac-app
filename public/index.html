@@ -32,20 +32,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 }
 #screen-login::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 30% 30%,rgba(40,114,173,0.18) 0%,transparent 60%),radial-gradient(ellipse at 75% 75%,rgba(71,151,67,0.10) 0%,transparent 55%);}
 #screen-login::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 60%,rgba(0,0,0,0.25) 100%);pointer-events:none;}
-.login-card{background:#fff;border-radius:12px;padding:40px 40px 36px;width:100%;max-width:440px;position:relative;z-index:1;box-shadow:0 24px 60px rgba(0,0,0,0.28),0 4px 16px rgba(0,0,0,0.16);}
+.login-card{background:#fff;border-radius:12px;padding:40px 40px 36px;width:100%;max-width:440px;position:relative;z-index:1;box-shadow:0 24px 60px rgba(0,0,0,0.28),0 4px 16px rgba(0,0,0,0.16);font-family:'Montserrat',sans-serif;}
 .login-logo-wrap{text-align:center;margin-bottom:28px;}
 .login-logo-wrap img{width:140px;height:140px;object-fit:contain;}
-.login-org-name{font-family:'DM Serif Display',serif;font-size:22px;color:var(--navy);text-align:center;margin-bottom:4px;letter-spacing:-0.01em;}
+.login-org-name{font-family:'Montserrat',sans-serif;font-weight:800;font-size:21px;color:var(--navy);text-align:center;margin-bottom:4px;letter-spacing:-0.01em;}
 .login-org-sub{font-size:10px;color:var(--text-light);text-align:center;letter-spacing:2.4px;text-transform:uppercase;font-weight:600;margin-bottom:28px;}
 .login-divider{border:none;border-top:1px solid var(--smoke);margin:0 0 22px;}
 .login-toggle{display:flex;background:var(--cream);border-radius:10px;padding:4px;margin-bottom:22px;gap:4px;border:1px solid var(--smoke);}
-.login-toggle-btn{flex:1;padding:9px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s;color:var(--text-light);text-align:center;border:none;background:transparent;font-family:'DM Sans',sans-serif;}
+.login-toggle-btn{flex:1;padding:9px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s;color:var(--text-light);text-align:center;border:none;background:transparent;font-family:'Montserrat',sans-serif;}
 .login-toggle-btn.active{background:var(--navy);color:#fff;font-weight:600;}
 .login-field{margin-bottom:14px;}
 .login-label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text-light);margin-bottom:6px;}
-.login-input{width:100%;padding:11px 14px;background:var(--cream);border:1px solid var(--smoke);border-radius:9px;color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color 0.2s;}
+.login-input{width:100%;padding:11px 14px;background:var(--cream);border:1px solid var(--smoke);border-radius:9px;color:var(--text);font-size:14px;font-family:'Montserrat',sans-serif;outline:none;transition:border-color 0.2s;}
 .login-input:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(13,43,94,0.1);}
-.login-btn{width:100%;padding:13px;background:var(--navy);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;letter-spacing:0.4px;cursor:pointer;transition:background 0.15s;font-family:'DM Sans',sans-serif;margin-top:10px;}
+.login-btn{width:100%;padding:13px;background:var(--navy);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;letter-spacing:0.4px;cursor:pointer;transition:background 0.15s;font-family:'Montserrat',sans-serif;margin-top:10px;}
 .login-btn:hover{background:#0C3768;}
 .login-error{background:rgba(214,64,69,0.08);border:1px solid rgba(214,64,69,0.25);border-radius:8px;padding:10px 14px;color:var(--red);font-size:13px;margin-bottom:14px;display:none;text-align:center;}
 .login-error.show{display:block;}
@@ -763,6 +763,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .login-activate-title{font-family:'Montserrat',sans-serif;font-weight:700;font-size:15px;color:var(--navy);text-align:center;margin-bottom:6px;}
 .login-activate-sub{font-size:11.5px;color:var(--text-light);text-align:center;line-height:1.5;margin-bottom:18px;}
 
+
+/* Discreet admin sign-in link */
+.login-admin-toggle{text-align:center;margin-top:10px;font-size:11px;color:var(--text-light);cursor:pointer;opacity:0.7;font-family:'Montserrat',sans-serif;}
+.login-admin-toggle:hover{opacity:1;text-decoration:underline;}
+
 </style>
 </head>
 <body>
@@ -776,21 +781,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
     <div class="login-org-name">Primary Care Solutions</div>
     <div class="login-org-sub">Informational Medicare Advisory Coordinators</div>
     <hr class="login-divider">
-    <div id="login-main-form"><div class="login-toggle">
-      <button class="login-toggle-btn active" onclick="setLoginMode('admin',this)">Admin</button>
-      <button class="login-toggle-btn" onclick="setLoginMode('agent',this)">iMAC Portal</button>
-    </div>
-    <div class="login-error" id="login-error">Incorrect credentials. Please try again.</div>
-    <div id="admin-login-fields">
-      <div class="login-field"><label class="login-label">Admin Password</label><input class="login-input" id="admin-pwd" type="password" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')doLogin()"></div>
-      <div class="login-hint">Default: <span style="font-family:'DM Mono',monospace;color:var(--navy)">admin123</span> — change after first login</div>
-    </div>
-    <div id="agent-login-fields" style="display:none">
+    <div id="login-main-form"><div class="login-error" id="login-error">Incorrect credentials. Please try again.</div>
+    <div id="agent-login-fields">
       <div class="login-field"><label class="login-label">Username</label><input class="login-input" id="agent-username" type="text" placeholder="Your username" onkeydown="if(event.key==='Enter')doLogin()"></div>
       <div class="login-field"><label class="login-label">Password</label><input class="login-input" id="agent-pwd" type="password" placeholder="Your password" onkeydown="if(event.key==='Enter')doLogin()"></div>
     </div>
+    <div id="admin-login-fields" style="display:none">
+      <div class="login-field"><label class="login-label">Admin Password</label><input class="login-input" id="admin-pwd" type="password" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    </div>
     <button class="login-btn" onclick="doLogin()">Sign In</button>
       <div class="login-activate-link" onclick="showActivateAccountForm()">First time? <span>Activate your iMAC account</span></div>
+      <div class="login-admin-toggle" id="login-admin-link" onclick="switchLoginMode('admin')">Admin sign in</div>
+      <div class="login-admin-toggle" id="login-agent-link" onclick="switchLoginMode('agent')" style="display:none">&#8249; Back to iMAC sign in</div>
     </div>
     <div id="activate-account-form" style="display:none">
       <div class="login-activate-title">Activate Your Account</div>
@@ -1105,16 +1107,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 
 
 
-
-<div style="padding:16px 26px;border-top:1px solid #E3E8EC;display:flex;gap:8px;justify-content:space-between;align-items:center;background:#FAFBFC">
-      <button class="btn btn-outline" onclick="resetPortalUrls()" style="font-size:12px">Reset to Defaults</button>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-outline" onclick="closeAdminSettings()">Cancel</button>
-        <button class="btn btn-green" onclick="saveAdminSettings()">Save</button>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- AGENT SELF-PROFILE EDIT MODAL -->
 <div class="modal-overlay" id="ap-profile-modal" style="display:none">
@@ -1459,8 +1451,15 @@ async function saveS(){
     return body;
   }catch(e){showToast('Connection issue \u2014 your last change may not have saved.');return null;}
 }
-let loginMode='admin';
-function setLoginMode(m,el){loginMode=m;document.querySelectorAll('.login-toggle-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');document.getElementById('admin-login-fields').style.display=m==='admin'?'block':'none';document.getElementById('agent-login-fields').style.display=m==='agent'?'block':'none';document.getElementById('login-error').classList.remove('show');}
+let loginMode='agent';
+function switchLoginMode(mode){
+  loginMode=mode;
+  document.getElementById('admin-login-fields').style.display=mode==='admin'?'block':'none';
+  document.getElementById('agent-login-fields').style.display=mode==='agent'?'block':'none';
+  document.getElementById('login-admin-link').style.display=mode==='admin'?'none':'block';
+  document.getElementById('login-agent-link').style.display=mode==='agent'?'none':'block';
+  document.getElementById('login-error').classList.remove('show');
+}
 async function doLogin(){
   const err=document.getElementById('login-error');err.classList.remove('show');
   const btn=document.getElementById('login-btn');if(btn)btn.disabled=true;
@@ -1495,6 +1494,7 @@ function logout(){
   sessionToken=null;localStorage.removeItem('pcscrm_session');
   S.currentUser=null;showScreen('login');
   ['admin-pwd','agent-username','agent-pwd'].forEach(id=>document.getElementById(id).value='');
+  switchLoginMode('agent');
 }
 function showScreen(n){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById('screen-'+n).classList.add('active');}
 const pageTitles={dashboard:'Dashboard',agents:'iMAC Roster',notifications:'Notifications',credentials:'iMAC Credentials',commissions:'Referral Bonuses',bob:'Referrals',resources:'Resources',documents:'Documents',alerts:'Alerts'};
@@ -1688,7 +1688,7 @@ function apEnrollmentsCard(a,enrollments){
 
   let body='';
   if(!enrollments.length){
-    body='<div class="ap-empty"><div class="ap-empty-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="5.5" r="2.5"/><path d="M2 13.25c0-2.2 1.79-4 4-4s4 1.8 4 4"/><circle cx="11.25" cy="6.5" r="2"/><path d="M11.25 10c1.66 0 3 1.34 3 3"/></svg></div><h4>No enrollments yet</h4><p>Add your first client to get started.</p></div>';
+    body='<div class="ap-empty"><div class="ap-empty-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="5.5" r="2.5"/><path d="M2 13.25c0-2.2 1.79-4 4-4s4 1.8 4 4"/><circle cx="11.25" cy="6.5" r="2"/><path d="M11.25 10c1.66 0 3 1.34 3 3"/></svg></div><h4>No referrals yet</h4><p>Add your first referral to get started.</p></div>';
   }else if(!filtered.length){
     body='<div class="ap-empty"><h4>No matches</h4><p>Try a different search term.</p></div>';
   }else{
