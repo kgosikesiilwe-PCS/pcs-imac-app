@@ -755,6 +755,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .lc-gloss-term{font-weight:700;color:var(--pcs-navy,#104581);}
 .lc-gloss-def{color:#2b3542;}
 
+
+/* Account activation (login screen) */
+.login-activate-link{text-align:center;margin-top:16px;font-size:12px;color:var(--text-light);cursor:pointer;}
+.login-activate-link span{color:var(--blue,#2872AD);font-weight:700;text-decoration:underline;}
+.login-activate-link:hover span{color:var(--navy);}
+.login-activate-title{font-family:'Montserrat',sans-serif;font-weight:700;font-size:15px;color:var(--navy);text-align:center;margin-bottom:6px;}
+.login-activate-sub{font-size:11.5px;color:var(--text-light);text-align:center;line-height:1.5;margin-bottom:18px;}
+
 </style>
 </head>
 <body>
@@ -768,7 +776,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
     <div class="login-org-name">Primary Care Solutions</div>
     <div class="login-org-sub">Informational Medicare Advisory Coordinators</div>
     <hr class="login-divider">
-    <div class="login-toggle">
+    <div id="login-main-form"><div class="login-toggle">
       <button class="login-toggle-btn active" onclick="setLoginMode('admin',this)">Admin</button>
       <button class="login-toggle-btn" onclick="setLoginMode('agent',this)">iMAC Portal</button>
     </div>
@@ -782,6 +790,19 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
       <div class="login-field"><label class="login-label">Password</label><input class="login-input" id="agent-pwd" type="password" placeholder="Your password" onkeydown="if(event.key==='Enter')doLogin()"></div>
     </div>
     <button class="login-btn" onclick="doLogin()">Sign In</button>
+      <div class="login-activate-link" onclick="showActivateAccountForm()">First time? <span>Activate your iMAC account</span></div>
+    </div>
+    <div id="activate-account-form" style="display:none">
+      <div class="login-activate-title">Activate Your Account</div>
+      <div class="login-activate-sub">Enter the setup code your PCS administrator shared with you, then choose your own username and password.</div>
+      <div class="login-error" id="activate-error">Error</div>
+      <div class="login-field"><label class="login-label">Setup Code</label><input class="login-input mono" id="activate-code" type="text" placeholder="e.g. AB3D7KQP" style="text-transform:uppercase"></div>
+      <div class="login-field"><label class="login-label">Choose a Username</label><input class="login-input" id="activate-username" type="text" placeholder="e.g. jsmith"></div>
+      <div class="login-field"><label class="login-label">Choose a Password</label><input class="login-input" id="activate-password" type="password" placeholder="At least 4 characters"></div>
+      <div class="login-field"><label class="login-label">Confirm Password</label><input class="login-input" id="activate-confirm" type="password" placeholder="Re-enter your password" onkeydown="if(event.key==='Enter')doActivateAccount()"></div>
+      <button class="login-btn" onclick="doActivateAccount()">Activate Account</button>
+      <div class="login-activate-link" onclick="hideActivateAccountForm()"><span>&#8249; Back to sign in</span></div>
+    </div>
   </div>
   <div class="login-footer">© 2025 Primary Care Solutions · iMAC CRM Platform · Secure Access</div>
 </div>
@@ -1270,6 +1291,28 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
   </div>
 </div>
 
+
+<!-- SETUP CODE MODAL -->
+<div class="modal-overlay" id="setup-code-modal" style="display:none">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <div>
+        <div class="modal-agent-name">iMAC Added</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px;letter-spacing:0.3px">Share this setup code with them</div>
+      </div>
+      <button class="modal-close" onclick="closeSetupCodeModal()">×</button>
+    </div>
+    <div style="padding:26px;text-align:center;font-family:'Montserrat',sans-serif">
+      <div style="font-size:13px;color:var(--text-light);margin-bottom:4px">Setup code for</div>
+      <div id="setup-code-name" style="font-size:16px;font-weight:700;color:var(--navy);margin-bottom:18px">Name</div>
+      <div id="setup-code-value" style="font-family:'DM Mono',ui-monospace,monospace;font-size:32px;font-weight:700;letter-spacing:6px;color:var(--navy);background:#F4F7FA;border:1px dashed #D6DCE2;border-radius:10px;padding:16px 10px;margin-bottom:16px">ABC123XY</div>
+      <div style="background:#EAF1F8;border-left:3px solid #2872AD;border-radius:6px;padding:10px 14px;font-size:11.5px;color:#0F1A2B;line-height:1.5;text-align:left;margin-bottom:18px">Send this code to the iMAC (text, email, or in person). On the login page, they'll click <strong>"First time? Activate your iMAC account"</strong>, enter this code, and choose their own username and password.</div>
+      <button class="btn btn-outline" onclick="copySetupCode()" style="margin-right:8px">Copy Code</button>
+      <button class="btn btn-green" onclick="closeSetupCodeModal()">Done</button>
+    </div>
+  </div>
+</div>
+
 <!-- DOC MANUAL ENTRY MODAL -->
 <div class="modal-overlay" id="manual-entry-modal" style="display:none">
   <div class="modal" style="max-width:560px">
@@ -1399,7 +1442,7 @@ async function loadS(){
   }catch(e){/* offline - keep whatever S already has */}
 }
 async function saveS(){
-  if(!sessionToken)return;
+  if(!sessionToken)return null;
   try{
     const res=await fetch('/api/state',{method:'POST',headers:apiHeaders(),body:JSON.stringify({state:S,baseVersion:S._version})});
     if(res.status===409){
@@ -1408,12 +1451,13 @@ async function saveS(){
       showToast('Someone else made changes just now \u2014 refreshed with the latest data.');
       if(S.currentUser&&S.currentUser.type==='admin'){renderDashboard();renderAgentTable();renderCredentialsPage();renderNotificationsPage();renderBOBPage();renderCommissionsPage();renderResourcesPage();}
       else if(S.currentUser&&S.currentUser.type==='agent'){renderAPDashboard();}
-      return;
+      return body;
     }
-    if(!res.ok){showToast('Connection issue \u2014 your last change may not have saved.');return;}
+    if(!res.ok){showToast('Connection issue \u2014 your last change may not have saved.');return null;}
     const body=await res.json();
     S._version=body.version;
-  }catch(e){showToast('Connection issue \u2014 your last change may not have saved.');}
+    return body;
+  }catch(e){showToast('Connection issue \u2014 your last change may not have saved.');return null;}
 }
 let loginMode='admin';
 function setLoginMode(m,el){loginMode=m;document.querySelectorAll('.login-toggle-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');document.getElementById('admin-login-fields').style.display=m==='admin'?'block':'none';document.getElementById('agent-login-fields').style.display=m==='agent'?'block':'none';document.getElementById('login-error').classList.remove('show');}
@@ -1467,7 +1511,7 @@ function getInitials(a){return(a.fname[0]+a.lname[0]).toUpperCase();}
 function getStatusBadge(s){const m={active:'status-active',pending:'status-pending',inactive:'status-inactive'};const l={active:'● Active',pending:'◐ Pending',inactive:'○ Inactive'};return'<span class="status-badge '+(m[s]||'status-pending')+'">'+(l[s]||s)+'</span>';}
 function getDocStatus(a){const docs=a.documents||{};const lb={contract:'Contract',appointment:'Appt.',eo:'E&O',id:'ID'};return DOC_TYPES.map(d=>'<span class="doc-pill '+(docs[d.key]?'doc-ok':'doc-missing')+'">'+(docs[d.key]?'<svg viewBox=\"0 0 10 10\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"width:10px;height:10px\"><path d=\"M2 5.25l2 2 4-4.5\"/></svg>':'<svg viewBox=\"0 0 10 10\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"width:10px;height:10px\"><path d=\"M2.5 2.5l5 5\"/><path d=\"M7.5 2.5l-5 5\"/></svg>')+' '+lb[d.key]+'</span>').join('');}
 function openAddAgent(){openModal('add-agent-modal');}
-function addAgent(){const fname=document.getElementById('new-fname').value.trim(),lname=document.getElementById('new-lname').value.trim();if(!fname||!lname){showToast('Name required');return;}const credU=document.getElementById('new-cred-username').value.trim();const credP=document.getElementById('new-cred-password').value;if(credU&&S.agents.find(a=>a.credentials&&a.credentials.username&&a.credentials.username.toLowerCase()===credU.toLowerCase())){showToast('Username already taken');return;}const agent={id:'AGT-'+Date.now(),fname,lname,dob:document.getElementById('new-dob').value,status:document.getElementById('new-status').value,email:document.getElementById('new-email').value,phone:document.getElementById('new-phone').value,practice:document.getElementById('new-practice')?document.getElementById('new-practice').value:'',doctorName:document.getElementById('new-doctor')?document.getElementById('new-doctor').value:'',practiceAddress:document.getElementById('new-practice-address')?document.getElementById('new-practice-address').value:'',address:'',generalNotes:'',documents:{},notes:[],credentials:{username:credU||'',password:credP||'',enabled:credU?'enabled':'disabled'},createdAt:new Date().toISOString()};S.agents.push(agent);saveS();closeModal('add-agent-modal');['new-fname','new-lname','new-dob','new-email','new-phone','new-practice','new-doctor','new-practice-address','new-cred-username','new-cred-password'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});document.getElementById('new-status').value='active';renderDashboard();renderAgentTable();renderCredentialsPage();showToast(fname+' '+lname+' added');}
+async function addAgent(){const fname=document.getElementById('new-fname').value.trim(),lname=document.getElementById('new-lname').value.trim();if(!fname||!lname){showToast('Name required');return;}const credU=document.getElementById('new-cred-username').value.trim();const credP=document.getElementById('new-cred-password').value;if(credU&&S.agents.find(a=>a.credentials&&a.credentials.username&&a.credentials.username.toLowerCase()===credU.toLowerCase())){showToast('Username already taken');return;}const newId='AGT-'+Date.now();const agent={id:newId,fname,lname,dob:document.getElementById('new-dob').value,status:document.getElementById('new-status').value,email:document.getElementById('new-email').value,phone:document.getElementById('new-phone').value,practice:document.getElementById('new-practice')?document.getElementById('new-practice').value:'',doctorName:document.getElementById('new-doctor')?document.getElementById('new-doctor').value:'',practiceAddress:document.getElementById('new-practice-address')?document.getElementById('new-practice-address').value:'',address:'',generalNotes:'',documents:{},notes:[],credentials:{username:credU||'',password:credP||'',enabled:'enabled'},createdAt:new Date().toISOString()};S.agents.push(agent);const result=await saveS();closeModal('add-agent-modal');['new-fname','new-lname','new-dob','new-email','new-phone','new-practice','new-doctor','new-practice-address','new-cred-username','new-cred-password'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});document.getElementById('new-status').value='active';renderDashboard();renderAgentTable();renderCredentialsPage();if(result&&result.state&&Array.isArray(result.state.agents)){const saved=result.state.agents.find(x=>x.id===newId);if(saved){const idx=S.agents.findIndex(x=>x.id===newId);if(idx>=0)S.agents[idx]=saved;if(saved.setupCode){renderCredentialsPage();showSetupCodeModal(fname+' '+lname,saved.setupCode);return;}}}showToast(fname+' '+lname+' added');}
 function renderAgentTable(filter='',statusFilter=''){const tbody=document.getElementById('agent-table-body');let agents=S.agents.filter(a=>{const q=filter.toLowerCase();return(!q||((a.fname+' '+a.lname+' '+a.id+' '+(a.practice||'')).toLowerCase().includes(q)))&&(!statusFilter||a.status===statusFilter);});if(!agents.length){tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><div class="empty-icon"></div><h3>'+(filter?'No results':'No iMACs')+'</h3></div></td></tr>';return;}tbody.innerHTML=agents.map(a=>{const hasPortal=a.credentials&&a.credentials.username&&a.credentials.enabled==='enabled';const pb=hasPortal?'<span class="chip chip-green"> Portal Active</span>':'<span class="chip" style="background:var(--smoke);color:var(--text-light)">No Access</span>';const _tp=getTrainingProgress(a);const _tpChip=_tp.completed===_tp.total&&_tp.total>0?'<span class="chip chip-green">'+_tp.completed+'/'+_tp.total+'</span>':'<span class="chip" style="background:var(--smoke);color:var(--text-light)">'+_tp.completed+'/'+_tp.total+'</span>';return'<tr onclick="openAgent(\''+a.id+'\')"><td><div class="agent-name-cell"><div class="agent-avatar">'+getInitials(a)+'</div><div><div class="agent-name">'+a.fname+' '+a.lname+'</div><div class="agent-id">'+a.id+'</div></div></div></td><td>'+getStatusBadge(a.status)+'</td><td>'+escapeHtml(a.practice||'—')+'</td><td>'+_tpChip+'</td><td>'+pb+'</td><td>'+getDocStatus(a)+'</td><td><button class="btn btn-outline btn-sm" onclick="event.stopPropagation();openAgent(\''+a.id+'\')">Open</button> <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();quickNotify(\''+a.id+'\')"><svg viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"width:13px;height:13px\"><path d=\"M8 2.5v1\"/><path d=\"M3 12.5V7.5a5 5 0 0 1 10 0v5\"/><path d=\"M2 12.5h12\"/><path d=\"M6.5 14a1.5 1.5 0 0 0 3 0\"/></svg></button> <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteAgent(\''+a.id+'\')"></button></td></tr>';}).join('');}
 function filterAgents(v){renderAgentTable(v);}
 function filterByStatus(v){renderAgentTable(document.getElementById('agent-search')?.value||'',v);}
@@ -1475,7 +1519,7 @@ function deleteAgent(id){if(!confirm('Delete this agent?'))return;S.agents=S.age
 function quickNotify(id){openAgent(id);setTimeout(()=>{document.querySelectorAll('#agent-modal .modal-tab')[4].click();},150);}
 function openAgent(id){const a=S.agents.find(x=>x.id===id);if(!a)return;currentAgentId=id;document.getElementById('modal-avatar').textContent=getInitials(a);document.getElementById('modal-name').textContent=a.fname+' '+a.lname;document.getElementById('modal-meta').textContent=(a.practice||'—')+' • '+a.id;document.getElementById('edit-fname').value=a.fname;document.getElementById('edit-lname').value=a.lname;document.getElementById('edit-dob').value=a.dob||'';document.getElementById('edit-practice').value=a.practice||'';document.getElementById('edit-status').value=a.status||'active';document.getElementById('edit-email').value=a.email||'';document.getElementById('edit-phone').value=a.phone||'';document.getElementById('edit-doctor').value=a.doctorName||'';document.getElementById('edit-practice-address').value=a.practiceAddress||'';document.getElementById('edit-address').value=a.address||'';document.getElementById('edit-general-notes').value=a.generalNotes||'';document.querySelectorAll('#agent-modal .modal-tab').forEach((t,i)=>t.classList.toggle('active',i===0));document.querySelectorAll('#agent-modal .tab-panel').forEach((p,i)=>p.classList.toggle('active',i===0));openModal('agent-modal');}
 function saveAgentProfile(){const a=S.agents.find(x=>x.id===currentAgentId);if(!a)return;a.fname=document.getElementById('edit-fname').value.trim();a.lname=document.getElementById('edit-lname').value.trim();a.dob=document.getElementById('edit-dob').value;a.practice=document.getElementById('edit-practice').value;a.status=document.getElementById('edit-status').value;a.email=document.getElementById('edit-email').value;a.phone=document.getElementById('edit-phone').value;a.doctorName=document.getElementById('edit-doctor').value;a.practiceAddress=document.getElementById('edit-practice-address').value;a.address=document.getElementById('edit-address').value;a.generalNotes=document.getElementById('edit-general-notes').value;document.getElementById('modal-name').textContent=a.fname+' '+a.lname;document.getElementById('modal-avatar').textContent=getInitials(a);saveS();renderAgentTable();renderDashboard();renderCredentialsPage();showToast('Profile saved');}
-function renderCredentialsPage(){const c=document.getElementById('credentials-list');if(!S.agents.length){c.innerHTML='<div class="empty-state"><div class="empty-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.25" cy="10.75" r="2.75"/><path d="M7.2 8.8l5.55-5.55"/><path d="M11 5l1.75 1.75"/><path d="M9.5 6.5l1.5 1.5"/></svg></div><h3>No agents yet</h3></div>';return;}c.innerHTML=S.agents.map(a=>{const cr=a.credentials||{};const en=cr.enabled==='enabled';return'<div class="cred-row"><div class="cred-avatar">'+getInitials(a)+'</div><div class="cred-info"><div class="cred-name">'+a.fname+' '+a.lname+'</div><div class="cred-username">'+(cr.username?'@'+cr.username:'No username set')+'</div></div><div class="cred-status-dot '+(en?'enabled':'disabled')+'"></div><span class="chip '+(en?'chip-green':'chip-gold')+'">'+(en?'Active':'Disabled')+'</span><button class="btn btn-outline btn-xs" onclick="openAgent(\''+a.id+'\');setTimeout(()=>{document.querySelectorAll(\'#agent-modal .modal-tab\')[5].click();},150)">Edit</button></div>';}).join('');}
+function renderCredentialsPage(){const c=document.getElementById('credentials-list');if(!S.agents.length){c.innerHTML='<div class="empty-state"><div class="empty-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.25" cy="10.75" r="2.75"/><path d="M7.2 8.8l5.55-5.55"/><path d="M11 5l1.75 1.75"/><path d="M9.5 6.5l1.5 1.5"/></svg></div><h3>No agents yet</h3></div>';return;}c.innerHTML=S.agents.map(a=>{const cr=a.credentials||{};const en=cr.enabled==='enabled';const pending=!cr.username&&a.setupCode;const usernameDisplay=cr.username?'@'+cr.username:(pending?'<span style=\"color:#C99A2E;font-weight:700\">Setup pending</span>':'No username set');const setupBtn=pending?'<button class="btn btn-outline btn-xs" onclick="viewSetupCode(\''+a.id+'\')" style="margin-right:6px">View Code</button>':'';return'<div class="cred-row"><div class="cred-avatar">'+getInitials(a)+'</div><div class="cred-info"><div class="cred-name">'+a.fname+' '+a.lname+'</div><div class="cred-username">'+usernameDisplay+'</div></div><div class="cred-status-dot '+(en?'enabled':'disabled')+'"></div><span class="chip '+(en?'chip-green':'chip-gold')+'">'+(en?'Active':'Disabled')+'</span>'+setupBtn+'<button class="btn btn-outline btn-xs" onclick="openAgent(\''+a.id+'\');setTimeout(()=>{document.querySelectorAll(\'#agent-modal .modal-tab\')[5].click();},150)">Edit</button></div>';}).join('');}
 function renderModalCredentials(){const a=S.agents.find(x=>x.id===currentAgentId);if(!a)return;const c=a.credentials||{};document.getElementById('cred-username').value=c.username||'';document.getElementById('cred-password').value=c.password||'';document.getElementById('cred-enabled').value=c.enabled||'disabled';}
 function saveCredentials(){const a=S.agents.find(x=>x.id===currentAgentId);if(!a)return;const u=document.getElementById('cred-username').value.trim().toLowerCase();const p=document.getElementById('cred-password').value;const en=document.getElementById('cred-enabled').value;if(u){const dup=S.agents.find(x=>x.id!==currentAgentId&&x.credentials&&x.credentials.username&&x.credentials.username.toLowerCase()===u);if(dup){showToast('Username taken');return;}}if(!a.credentials)a.credentials={};a.credentials.username=u;a.credentials.password=p;a.credentials.enabled=en;saveS();renderCredentialsPage();renderAgentTable();showToast('Credentials saved');}
 function changeAdminPassword(){const np=document.getElementById('new-admin-pwd').value;const cp=document.getElementById('confirm-admin-pwd').value;if(!np){showToast('Enter a new password');return;}if(np!==cp){showToast('Passwords do not match');return;}S.adminPassword=np;saveS();document.getElementById('new-admin-pwd').value='';document.getElementById('confirm-admin-pwd').value='';showToast('Admin password updated');}
@@ -2678,28 +2722,80 @@ function openChangeCredentials(){
   document.getElementById('change-credentials-modal').style.display='flex';
 }
 function closeChangeCredentials(){document.getElementById('change-credentials-modal').style.display='none';}
-function saveChangeCredentials(){
-  const a=S.agents.find(x=>x.id===currentAgentId);if(!a)return;
-  if(!a.credentials)a.credentials={};
-  const cred=a.credentials;
+async function saveChangeCredentials(){
   const currentPwd=document.getElementById('cc-current-password').value;
-  if(!currentPwd||currentPwd!==cred.password){showToast('Current password is incorrect');return;}
   const newUsername=document.getElementById('cc-new-username').value.trim();
-  if(!newUsername){showToast('Username cannot be blank');return;}
-  const usernameTaken=S.agents.some(x=>x.id!==a.id&&x.credentials&&x.credentials.username&&x.credentials.username.toLowerCase()===newUsername.toLowerCase());
-  if(usernameTaken){showToast('That username is already in use');return;}
   const newPassword=document.getElementById('cc-new-password').value;
   const confirmPassword=document.getElementById('cc-confirm-password').value;
+  if(!currentPwd){showToast('Current password is required');return;}
+  if(!newUsername){showToast('Username cannot be blank');return;}
   if(newPassword||confirmPassword){
     if(newPassword.length<4){showToast('New password must be at least 4 characters');return;}
     if(newPassword!==confirmPassword){showToast('New passwords do not match');return;}
   }
-  cred.username=newUsername;
-  if(newPassword)cred.password=newPassword;
-  saveS();
-  closeChangeCredentials();
-  renderAPDashboard();
-  showToast('Login info updated');
+  if(!sessionToken){showToast('Session expired \u2014 please sign in again');return;}
+  try{
+    const res=await fetch('/api/state',{method:'POST',headers:apiHeaders(),body:JSON.stringify({action:'change-credentials',currentPassword:currentPwd,newUsername,newPassword})});
+    const body=await res.json();
+    if(res.ok){
+      S={...S,...body.state,_version:body.version};
+      closeChangeCredentials();
+      renderAPDashboard();
+      showToast('Login info updated');
+    }else{
+      showToast(body.error||'Could not update login info');
+    }
+  }catch(e){showToast('Connection issue \u2014 please try again');}
+}
+
+// ===== iMAC self-service account setup (invite codes) =====
+function showSetupCodeModal(name,code){
+  document.getElementById('setup-code-name').textContent=name;
+  document.getElementById('setup-code-value').textContent=code;
+  document.getElementById('setup-code-modal').style.display='flex';
+}
+function closeSetupCodeModal(){document.getElementById('setup-code-modal').style.display='none';renderCredentialsPage();}
+function copySetupCode(){
+  const code=document.getElementById('setup-code-value').textContent;
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(code).then(()=>showToast('Code copied')).catch(()=>showToast('Copy failed \u2014 select and copy manually'));
+  }else{showToast('Copy failed \u2014 select and copy manually');}
+}
+function viewSetupCode(agentId){
+  const a=S.agents.find(x=>x.id===agentId);
+  if(!a||!a.setupCode){showToast('No pending setup code for this iMAC');return;}
+  showSetupCodeModal(a.fname+' '+a.lname,a.setupCode);
+}
+function showActivateAccountForm(){
+  document.getElementById('login-main-form').style.display='none';
+  document.getElementById('activate-account-form').style.display='block';
+  document.getElementById('activate-error').classList.remove('show');
+}
+function hideActivateAccountForm(){
+  document.getElementById('activate-account-form').style.display='none';
+  document.getElementById('login-main-form').style.display='block';
+}
+async function doActivateAccount(){
+  const err=document.getElementById('activate-error');err.classList.remove('show');
+  const code=document.getElementById('activate-code').value.trim();
+  const username=document.getElementById('activate-username').value.trim();
+  const password=document.getElementById('activate-password').value;
+  const confirm=document.getElementById('activate-confirm').value;
+  if(!code||!username||!password){err.textContent='Please fill in every field.';err.classList.add('show');return;}
+  if(password.length<4){err.textContent='Password must be at least 4 characters.';err.classList.add('show');return;}
+  if(password!==confirm){err.textContent='Passwords do not match.';err.classList.add('show');return;}
+  try{
+    const res=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role:'setup',code,username,password})});
+    const body=await res.json();
+    if(res.ok){
+      sessionToken=body.token;localStorage.setItem('pcscrm_session',sessionToken);
+      await loadS();
+      S.currentUser={type:'agent',agentId:body.agentId};
+      showScreen('agent');loadAgentPortal(body.agentId);
+    }else{
+      err.textContent=body.error||'Could not activate your account. Please check your code and try again.';err.classList.add('show');
+    }
+  }catch(e){err.textContent='Connection error. Please check your internet and try again.';err.classList.add('show');}
 }
 
 // ===== Helpers =====

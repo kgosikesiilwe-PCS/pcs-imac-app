@@ -3,8 +3,10 @@ import {
   workspaceStore,
   defaultWorkspace,
   hashPassword,
+  verifyPassword,
   requireSession,
   sanitizeForClient,
+  generateSetupCode,
   jsonResponse,
 } from "./_lib/auth.mts";
 
@@ -25,7 +27,7 @@ export default async (req: Request, context: Context) => {
       await store.setJSON("workspace", workspace);
     }
     return jsonResponse({
-      state: sanitizeForClient(workspace),
+      state: sanitizeForClient(workspace, session.role),
       version: (workspace as any)._version || 0,
       role: session.role,
       agentId: session.agentId || null,
@@ -38,6 +40,45 @@ export default async (req: Request, context: Context) => {
       body = await req.json();
     } catch {
       return jsonResponse({ error: "Invalid request body" }, 400);
+    }
+
+    // Self-service credential change: requires the CURRENT password to be
+    // verified server-side against the stored hash (the client never has
+    // access to any password hash, so this can't be checked client-side).
+    if (body?.action === "change-credentials") {
+      if (session.role !== "agent" || !session.agentId) {
+        return jsonResponse({ error: "Only iMACs can use this action" }, 403);
+      }
+      const currentPassword = body?.currentPassword || "";
+      const newUsername = String(body?.newUsername || "").trim();
+      const newPassword = body?.newPassword || "";
+      let existing: any = await store.get("workspace", { type: "json" });
+      if (!existing) existing = defaultWorkspace(hashPassword(DEFAULT_ADMIN_PASSWORD_HASH_SEED));
+      const agents = Array.isArray(existing.agents) ? existing.agents : [];
+      const agent = agents.find((a: any) => a.id === session.agentId);
+      if (!agent) return jsonResponse({ error: "Account not found" }, 404);
+      if (!verifyPassword(currentPassword, agent.credentials && agent.credentials.passwordHash)) {
+        return jsonResponse({ error: "Current password is incorrect" }, 401);
+      }
+      if (!newUsername) return jsonResponse({ error: "Username cannot be blank" }, 400);
+      const taken = agents.some(
+        (a: any) =>
+          a.id !== agent.id &&
+          a.credentials &&
+          a.credentials.username &&
+          a.credentials.username.toLowerCase() === newUsername.toLowerCase()
+      );
+      if (taken) return jsonResponse({ error: "That username is already in use" }, 409);
+      if (newPassword) {
+        if (newPassword.length < 4) {
+          return jsonResponse({ error: "New password must be at least 4 characters" }, 400);
+        }
+        agent.credentials.passwordHash = hashPassword(newPassword);
+      }
+      agent.credentials.username = newUsername;
+      existing._version = (existing._version || 0) + 1;
+      await store.setJSON("workspace", existing);
+      return jsonResponse({ state: sanitizeForClient(existing, session.role), version: existing._version });
     }
 
     const incoming = body?.state;
@@ -58,7 +99,7 @@ export default async (req: Request, context: Context) => {
         {
           error: "conflict",
           message: "This data was changed elsewhere since you last loaded it.",
-          state: sanitizeForClient(existing),
+          state: sanitizeForClient(existing, session.role),
           version: existingVersion,
         },
         409
@@ -107,7 +148,21 @@ export default async (req: Request, context: Context) => {
       } else if (prev && prev.credentials && prev.credentials.passwordHash) {
         creds.passwordHash = prev.credentials.passwordHash;
       }
-      return { ...a, credentials: creds };
+      const out = { ...a, credentials: creds };
+      if (creds.passwordHash) {
+        // Account is fully set up (or just got a password from admin) — no
+        // setup code needed any more.
+        delete out.setupCode;
+      } else if (prev && prev.setupCode) {
+        // Still pending self-service setup — keep the same code so a code
+        // already shared with the iMAC doesn't silently stop working.
+        out.setupCode = prev.setupCode;
+      } else if (!creds.username) {
+        // Brand-new iMAC created with no credentials at all — generate their
+        // one-time setup code now.
+        out.setupCode = generateSetupCode();
+      }
+      return out;
     });
 
     const merged = {
@@ -120,7 +175,7 @@ export default async (req: Request, context: Context) => {
 
     await store.setJSON("workspace", merged);
 
-    return jsonResponse({ state: sanitizeForClient(merged), version: merged._version });
+    return jsonResponse({ state: sanitizeForClient(merged, session.role), version: merged._version });
   }
 
   return jsonResponse({ error: "Method not allowed" }, 405);

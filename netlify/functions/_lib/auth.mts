@@ -24,6 +24,18 @@ export function verifyPassword(password: string, stored: string | undefined | nu
   }
 }
 
+export function generateSetupCode(): string {
+  // Human-typeable: uppercase letters + digits, unambiguous characters only
+  // (no 0/O, 1/I) so it reads cleanly over text or phone.
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  const bytes = crypto.randomBytes(8);
+  for (let i = 0; i < 8; i++) {
+    code += alphabet[bytes[i] % alphabet.length];
+  }
+  return code;
+}
+
 // ===== Session store =====
 export interface SessionRecord {
   role: "admin" | "agent";
@@ -82,16 +94,22 @@ export function defaultWorkspace(adminPasswordHash: string) {
 }
 
 // Strip anything that should never be sent to a browser (password hashes).
-export function sanitizeForClient(workspace: any) {
+export function sanitizeForClient(workspace: any, viewerRole?: "admin" | "agent") {
   const clone = JSON.parse(JSON.stringify(workspace || {}));
   delete clone.adminPasswordHash;
   if (Array.isArray(clone.agents)) {
     clone.agents = clone.agents.map((a: any) => {
-      if (a && a.credentials) {
-        const { passwordHash, ...restCreds } = a.credentials;
-        return { ...a, credentials: restCreds };
+      const out = { ...a };
+      if (out.credentials) {
+        const { passwordHash, ...restCreds } = out.credentials;
+        out.credentials = restCreds;
       }
-      return a;
+      // Setup codes are shared by the admin with the iMAC out-of-band
+      // (text/call/email) — never expose them to agent sessions, only admin.
+      if (viewerRole !== "admin") {
+        delete out.setupCode;
+      }
+      return out;
     });
   }
   return clone;
