@@ -1305,6 +1305,31 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
   </div>
 </div>
 
+
+<!-- RESET PASSWORD MODAL -->
+<div class="modal-overlay" id="reset-password-modal" style="display:none">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <div>
+        <div class="modal-agent-name">Reset Password</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px;letter-spacing:0.3px" id="reset-pw-name">for iMAC</div>
+      </div>
+      <button class="modal-close" onclick="closeResetPassword()">×</button>
+    </div>
+    <div style="padding:24px 26px;font-family:'Montserrat',sans-serif">
+      <div style="background:#EAF1F8;border-left:3px solid #2872AD;border-radius:6px;padding:10px 14px;margin-bottom:18px;font-size:11.5px;color:#0F1A2B;line-height:1.5">This sets a brand-new password immediately. Share it with them directly &mdash; they can change it themselves afterward from their Profile page.</div>
+      <div style="display:grid;gap:14px">
+        <div><label style="display:block;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:#5A6678;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">New Password</label><input class="form-input" id="reset-pw-new" type="password" placeholder="At least 4 characters" style="width:100%;border:1px solid #D6DCE2;border-radius:6px;padding:9px 12px;font-family:'Montserrat',sans-serif;font-size:13px"></div>
+        <div><label style="display:block;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:#5A6678;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Confirm Password</label><input class="form-input" id="reset-pw-confirm" type="password" placeholder="Re-enter the password" style="width:100%;border:1px solid #D6DCE2;border-radius:6px;padding:9px 12px;font-family:'Montserrat',sans-serif;font-size:13px" onkeydown="if(event.key==='Enter')saveResetPassword()"></div>
+      </div>
+    </div>
+    <div style="padding:16px 26px;border-top:1px solid #E3E8EC;display:flex;gap:8px;justify-content:flex-end;background:#FAFBFC">
+      <button class="ap-btn ap-btn-outline" onclick="closeResetPassword()">Cancel</button>
+      <button class="ap-btn ap-btn-green" onclick="saveResetPassword()">Set New Password</button>
+    </div>
+  </div>
+</div>
+
 <!-- DOC MANUAL ENTRY MODAL -->
 <div class="modal-overlay" id="manual-entry-modal" style="display:none">
   <div class="modal" style="max-width:560px">
@@ -1512,7 +1537,7 @@ function getStatusBadge(s){const m={active:'status-active',pending:'status-pendi
 function getDocStatus(a){const docs=a.documents||{};const lb={contract:'Contract',appointment:'Appt.',eo:'E&O',id:'ID'};return DOC_TYPES.map(d=>'<span class="doc-pill '+(docs[d.key]?'doc-ok':'doc-missing')+'">'+(docs[d.key]?'<svg viewBox=\"0 0 10 10\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"width:10px;height:10px\"><path d=\"M2 5.25l2 2 4-4.5\"/></svg>':'<svg viewBox=\"0 0 10 10\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"width:10px;height:10px\"><path d=\"M2.5 2.5l5 5\"/><path d=\"M7.5 2.5l-5 5\"/></svg>')+' '+lb[d.key]+'</span>').join('');}
 function openAddAgent(){openModal('add-agent-modal');}
 async function addAgent(){const fname=document.getElementById('new-fname').value.trim(),lname=document.getElementById('new-lname').value.trim();if(!fname||!lname){showToast('Name required');return;}const credU=document.getElementById('new-cred-username').value.trim();const credP=document.getElementById('new-cred-password').value;if(credU&&S.agents.find(a=>a.credentials&&a.credentials.username&&a.credentials.username.toLowerCase()===credU.toLowerCase())){showToast('Username already taken');return;}const newId='AGT-'+Date.now();const agent={id:newId,fname,lname,dob:document.getElementById('new-dob').value,status:document.getElementById('new-status').value,email:document.getElementById('new-email').value,phone:document.getElementById('new-phone').value,practice:document.getElementById('new-practice')?document.getElementById('new-practice').value:'',doctorName:document.getElementById('new-doctor')?document.getElementById('new-doctor').value:'',practiceAddress:document.getElementById('new-practice-address')?document.getElementById('new-practice-address').value:'',address:'',generalNotes:'',documents:{},notes:[],credentials:{username:credU||'',password:credP||'',enabled:'enabled'},createdAt:new Date().toISOString()};S.agents.push(agent);const result=await saveS();closeModal('add-agent-modal');['new-fname','new-lname','new-dob','new-email','new-phone','new-practice','new-doctor','new-practice-address','new-cred-username','new-cred-password'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});document.getElementById('new-status').value='active';renderDashboard();renderAgentTable();renderCredentialsPage();if(result&&result.state&&Array.isArray(result.state.agents)){const saved=result.state.agents.find(x=>x.id===newId);if(saved){const idx=S.agents.findIndex(x=>x.id===newId);if(idx>=0)S.agents[idx]=saved;if(saved.setupCode){renderCredentialsPage();showSetupCodeModal(fname+' '+lname,saved.setupCode);return;}}}showToast(fname+' '+lname+' added');}
-function renderAgentTable(filter='',statusFilter=''){const tbody=document.getElementById('agent-table-body');let agents=S.agents.filter(a=>{const q=filter.toLowerCase();return(!q||((a.fname+' '+a.lname+' '+a.id+' '+(a.practice||'')).toLowerCase().includes(q)))&&(!statusFilter||a.status===statusFilter);});if(!agents.length){tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><div class="empty-icon"></div><h3>'+(filter?'No results':'No iMACs')+'</h3></div></td></tr>';return;}tbody.innerHTML=agents.map(a=>{const hasPortal=a.credentials&&a.credentials.username&&a.credentials.enabled==='enabled';const pb=hasPortal?'<span class="chip chip-green"> Portal Active</span>':'<span class="chip" style="background:var(--smoke);color:var(--text-light)">No Access</span>';const _tp=getTrainingProgress(a);const _tpChip=_tp.completed===_tp.total&&_tp.total>0?'<span class="chip chip-green">'+_tp.completed+'/'+_tp.total+'</span>':'<span class="chip" style="background:var(--smoke);color:var(--text-light)">'+_tp.completed+'/'+_tp.total+'</span>';return'<tr onclick="openAgent(\''+a.id+'\')"><td><div class="agent-name-cell"><div class="agent-avatar">'+getInitials(a)+'</div><div><div class="agent-name">'+a.fname+' '+a.lname+'</div><div class="agent-id">'+a.id+'</div></div></div></td><td>'+getStatusBadge(a.status)+'</td><td>'+escapeHtml(a.practice||'—')+'</td><td>'+_tpChip+'</td><td>'+pb+'</td><td>'+getDocStatus(a)+'</td><td><button class="btn btn-outline btn-sm" onclick="event.stopPropagation();openAgent(\''+a.id+'\')">Open</button> <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();quickNotify(\''+a.id+'\')"><svg viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"width:13px;height:13px\"><path d=\"M8 2.5v1\"/><path d=\"M3 12.5V7.5a5 5 0 0 1 10 0v5\"/><path d=\"M2 12.5h12\"/><path d=\"M6.5 14a1.5 1.5 0 0 0 3 0\"/></svg></button> <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteAgent(\''+a.id+'\')"></button></td></tr>';}).join('');}
+function renderAgentTable(filter='',statusFilter=''){const tbody=document.getElementById('agent-table-body');let agents=S.agents.filter(a=>{const q=filter.toLowerCase();return(!q||((a.fname+' '+a.lname+' '+a.id+' '+(a.practice||'')).toLowerCase().includes(q)))&&(!statusFilter||a.status===statusFilter);});if(!agents.length){tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><div class="empty-icon"></div><h3>'+(filter?'No results':'No iMACs')+'</h3></div></td></tr>';return;}tbody.innerHTML=agents.map(a=>{const hasPortal=a.credentials&&a.credentials.username&&a.credentials.enabled==='enabled';const pb=hasPortal?'<span class="chip chip-green"> Portal Active</span>':'<span class="chip" style="background:var(--smoke);color:var(--text-light)">No Access</span>';const _tp=getTrainingProgress(a);const _tpChip=_tp.completed===_tp.total&&_tp.total>0?'<span class="chip chip-green">'+_tp.completed+'/'+_tp.total+'</span>':'<span class="chip" style="background:var(--smoke);color:var(--text-light)">'+_tp.completed+'/'+_tp.total+'</span>';return'<tr onclick="openAgent(\''+a.id+'\')"><td><div class="agent-name-cell"><div class="agent-avatar">'+getInitials(a)+'</div><div><div class="agent-name">'+a.fname+' '+a.lname+'</div><div class="agent-id">'+a.id+'</div></div></div></td><td>'+getStatusBadge(a.status)+'</td><td>'+escapeHtml(a.practice||'—')+'</td><td>'+_tpChip+'</td><td>'+pb+'</td><td>'+getDocStatus(a)+'</td><td><button class="btn btn-outline btn-sm" onclick="event.stopPropagation();openAgent(\''+a.id+'\')">Open</button> <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();openResetPassword(\''+a.id+'\')" title="Reset Password"><svg viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"width:13px;height:13px\"><circle cx=\"6\" cy=\"10\" r=\"3\"/><path d=\"M8.1 7.9L13.5 2.5\"/><path d=\"M11.5 4.5l1.5 1.5\"/><path d=\"M13.5 2.5l1.2 1.2\"/></svg></button> <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();quickNotify(\''+a.id+'\')"><svg viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"width:13px;height:13px\"><path d=\"M8 2.5v1\"/><path d=\"M3 12.5V7.5a5 5 0 0 1 10 0v5\"/><path d=\"M2 12.5h12\"/><path d=\"M6.5 14a1.5 1.5 0 0 0 3 0\"/></svg></button> <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteAgent(\''+a.id+'\')"></button></td></tr>';}).join('');}
 function filterAgents(v){renderAgentTable(v);}
 function filterByStatus(v){renderAgentTable(document.getElementById('agent-search')?.value||'',v);}
 function deleteAgent(id){if(!confirm('Delete this agent?'))return;S.agents=S.agents.filter(a=>a.id!==id);saveS();renderAgentTable();renderDashboard();renderCredentialsPage();showToast('iMAC removed');}
@@ -2796,6 +2821,32 @@ async function doActivateAccount(){
       err.textContent=body.error||'Could not activate your account. Please check your code and try again.';err.classList.add('show');
     }
   }catch(e){err.textContent='Connection error. Please check your internet and try again.';err.classList.add('show');}
+}
+
+// ===== Admin: quick password reset =====
+function openResetPassword(agentId){
+  const a=S.agents.find(x=>x.id===agentId);if(!a)return;
+  window.resetPasswordAgentId=agentId;
+  document.getElementById('reset-pw-name').textContent='for '+a.fname+' '+a.lname;
+  document.getElementById('reset-pw-new').value='';
+  document.getElementById('reset-pw-confirm').value='';
+  document.getElementById('reset-password-modal').style.display='flex';
+}
+function closeResetPassword(){document.getElementById('reset-password-modal').style.display='none';window.resetPasswordAgentId=null;}
+async function saveResetPassword(){
+  const agentId=window.resetPasswordAgentId;if(!agentId)return;
+  const a=S.agents.find(x=>x.id===agentId);if(!a)return;
+  const newPw=document.getElementById('reset-pw-new').value;
+  const confirmPw=document.getElementById('reset-pw-confirm').value;
+  if(!newPw||newPw.length<4){showToast('Password must be at least 4 characters');return;}
+  if(newPw!==confirmPw){showToast('Passwords do not match');return;}
+  if(!a.credentials)a.credentials={};
+  a.credentials.password=newPw;
+  if(!a.credentials.enabled)a.credentials.enabled='enabled';
+  await saveS();
+  closeResetPassword();
+  renderAgentTable();renderCredentialsPage();
+  showToast('Password reset for '+a.fname+' '+a.lname);
 }
 
 // ===== Helpers =====
